@@ -1,0 +1,29 @@
+# Search criteria applied to every listing in a BoligPortal SearchAgent email.
+# The SearchAgents on boligportal.dk should be set a bit looser than this
+# (their max rent excludes aconto); this file holds the exact rules.
+
+area:
+  # København K, V, Ø, N, NV
+  postcodes: [[1000, 1499], [1500, 1799], [2100, 2100], [2200, 2200], [2400, 2400]]
+  # Used when the email only names the district, not the postcode
+  districts: ["københavn k", "københavn v", "københavn ø", "københavn n", "københavn nv"]
+
+lease:
+  min_months: 24          # unlimited ("ubegrænset", stored as 0) is always accepted
+
+move_in:
+  earliest: 2026-12-01
+  latest: 2027-01-31
+
+# Checked in order; a listing goes to the first profile it fits.
+profiles:
+  solo:
+    label: "Solo (1 bedroom)"
+    rooms_min: 2          # BoligPortal counts the living room: 1 bedroom = 2 værelser
+    rooms_max: 2
+    max_total_rent: 14000 # rent + aconto
+  shared:
+    label: "Shared with friend (2 bedrooms)"
+    rooms_min: 3
+    rooms_max: null
+    max_total_rent: 19000 # rent + aconto

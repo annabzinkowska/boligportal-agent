@@ -1,0 +1,32 @@
+name: boligportal-agent
+
+on:
+  workflow_dispatch:          # main trigger: cron-job.org calls this every 3 min
+  schedule:
+    - cron: "*/30 * * * *"    # backup in case cron-job.org stops
+
+concurrency:
+  group: agent
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python main.py
+        env:
+          IMAP_HOST: ${{ secrets.IMAP_HOST }}
+          IMAP_USER: ${{ secrets.IMAP_USER }}
+          IMAP_PASSWORD: ${{ secrets.IMAP_PASSWORD }}
+          IMAP_FOLDER: ${{ secrets.IMAP_FOLDER }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          APPLICANT_PROFILE: ${{ secrets.APPLICANT_PROFILE }}

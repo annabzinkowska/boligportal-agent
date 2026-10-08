@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.env
+applicant_profile.md
+tests/fixtures/
+*.eml
