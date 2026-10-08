@@ -1,13 +1,13 @@
-"""Claude calls: extract listings from an alert email, and draft an application."""
+"""OpenAI calls: extract listings from an alert email, and draft an application."""
 import json
 from pathlib import Path
 
-import anthropic
+from openai import OpenAI
 
-MODEL = "claude-opus-5-5"
+MODEL = "gpt-5.5"
 PROMPT = Path(__file__).with_name("prompt.md").read_text()
 
-_client: anthropic.Anthropic | None = None
+_client: OpenAI | None = None
 
 
 def _nullable(kind: str) -> dict:
@@ -75,20 +75,20 @@ DRAFT_SCHEMA = {
 
 def _call(system: str, user: str, schema: dict, effort: str) -> dict:
     global _client
-    _client = _client or anthropic.Anthropic()
-    response = _client.beta.messages.create(
+    _client = _client or OpenAI()
+    response = _client.chat.completions.create(
         model=MODEL,
-        max_tokens=16000,
-        betas=["server-side-fallback-2026-07-01"],
-        system=system,
-        messages=[{"role": "user", "content": user}],
-        output_config={"effort": effort, "format": {"type": "json_schema", "schema": schema}},
-        fallbacks="default",
+        reasoning_effort=effort,
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+        response_format={
+            "type": "json_schema",
+            "json_schema": {"name": "result", "strict": True, "schema": schema},
+        },
     )
-    if response.stop_reason in ("refusal", "max_tokens"):
-        raise RuntimeError(f"Claude stopped with {response.stop_reason}")
-    text = next(b.text for b in response.content if b.type == "text")
-    return json.loads(text)
+    choice = response.choices[0]
+    if choice.finish_reason != "stop" or choice.message.refusal:
+        raise RuntimeError(f"model stopped with {choice.finish_reason}: {choice.message.refusal}")
+    return json.loads(choice.message.content)
 
 
 def extract_listings(email_text: str) -> list[dict]:

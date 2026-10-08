@@ -5,8 +5,8 @@ Turns BoligPortal SearchAgent alert emails into tailored application drafts on T
 ```
 SearchAgent email → mailbox folder "BoligPortal"
 cron-job.org (every 3 min) → GitHub Actions → main.py
-  read unread alerts (IMAP) → Claude extracts listings → filters.py (config.yaml)
-  → Claude checks requirements + drafts message → Telegram card → email marked read
+  read unread alerts (IMAP) → OpenAI (gpt-5.5) extracts listings → filters.py (config.yaml)
+  → OpenAI checks requirements + drafts message → Telegram card → email marked read
 ```
 
 The agent never visits boligportal.dk. BoligPortal forbids automated access, and its Cloudflare protection blocks GitHub's servers.
@@ -24,12 +24,10 @@ Missing information never rejects a listing. It shows up as ❔ on the card.
 
 ## Setup
 
-1. **BoligPortal**: complete your tenant profile, then create two SearchAgents with areas København K, V, Ø, N and NV:
-   - 2 rooms, max rent 14,000
-   - 3+ rooms, max rent 19,000
+1. **BoligPortal**: complete your tenant profile, then create one SearchAgent: areas København K, V, Ø, N and NV, 2+ rooms, max rent 19,000. The agent decides per listing whether it fits solo or shared.
 2. **Mailbox**: add a filter that moves BoligPortal alert emails into a folder/label called `BoligPortal`, and create an app password (Gmail: Google Account → Security → App passwords; IMAP must be enabled).
 3. **Telegram**: create a bot with @BotFather and copy the token. Send the bot any message, then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy `chat.id`.
-4. **Anthropic API key** from console.anthropic.com.
+4. **OpenAI API key** from platform.openai.com (API credit is billed separately from a ChatGPT subscription).
 5. **Applicant profile**: plain-text facts about you (and your friend, for shared applications): name, age, job/studies, income, non-smoker, pets, why these areas, references, contact availability. Drafts only use facts from this text.
 6. **GitHub secrets** (repo → Settings → Secrets and variables → Actions):
 
@@ -39,7 +37,7 @@ Missing information never rejects a listing. It shows up as ❔ on the card.
    | `IMAP_USER` | your email address |
    | `IMAP_PASSWORD` | the app password |
    | `IMAP_FOLDER` | optional, default `BoligPortal` |
-   | `ANTHROPIC_API_KEY` | API key |
+   | `OPENAI_API_KEY` | API key |
    | `TELEGRAM_BOT_TOKEN` | bot token |
    | `TELEGRAM_CHAT_ID` | chat id |
    | `APPLICANT_PROFILE` | the profile text from step 5 |
@@ -65,7 +63,7 @@ The repo is public so Actions minutes are free. All personal data is stored in s
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest
 .venv/bin/python -m pytest
-export ANTHROPIC_API_KEY=...            # plus applicant_profile.md (gitignored)
+set -a; . ./.env; set +a           # OPENAI_API_KEY=...; plus applicant_profile.md (gitignored)
 .venv/bin/python main.py --eml alert.eml   # save a real alert email as .eml; prints the cards
 ```
 
