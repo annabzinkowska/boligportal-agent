@@ -4,7 +4,7 @@ from pathlib import Path
 
 from openai import OpenAI
 
-MODEL = "gpt-5.5"
+MODEL = "gpt-6-luna"
 PROMPT = Path(__file__).with_name("prompt.md").read_text()
 
 _client: OpenAI | None = None

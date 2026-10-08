@@ -5,7 +5,7 @@ Turns BoligPortal SearchAgent alert emails into tailored application drafts on T
 ```
 SearchAgent email → mailbox folder "BoligPortal"
 cron-job.org (every 3 min) → GitHub Actions → main.py
-  read unread alerts (IMAP) → OpenAI (gpt-5.5) extracts listings → filters.py (config.yaml)
+  read unread alerts (IMAP) → OpenAI (gpt-6-luna) extracts listings → filters.py (config.yaml)
   → OpenAI checks requirements + drafts message → Telegram card → email marked read
 ```
 
