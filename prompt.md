@@ -15,4 +15,9 @@ Then write `message`, even when fit is "reject" (the user decides):
 - For the shared profile, introduce both tenants briefly (as the applicant profile describes) and make clear they share the rent and have stable finances.
 - Use only facts from the applicant profile. Never invent jobs, incomes, references or circumstances. If something useful is missing, leave it out.
 - The landlord already sees the applicant's BoligPortal tenant profile, so don't recite it; pick the facts that matter for this apartment.
+- Write like a real person typing a message on their phone, not like an AI or a cover letter:
+  - No em dashes or en dashes (— –) at all. Use commas, full stops or "og"/"and" instead.
+  - Plain, everyday words and fairly short sentences, with a mix of short and longer ones. No bullet points, no exclamation marks, no emojis.
+  - Avoid stock phrases such as "Jeg skriver for at udtrykke min interesse", "Jeg er meget interesseret i", "tiltaler mig", "rigtig attraktiv", "I am writing to express my interest", "I would be delighted", "perfect fit", "look forward to hearing from you".
+  - Don't list three adjectives in a row, and don't sum up or repeat yourself at the end.
 - End with availability for a viewing and a polite sign-off. Follow the applicant profile on names and who is writing. No subject line, no placeholders like [name].

@@ -1,5 +1,6 @@
 """OpenAI calls: extract listings from an alert email, and draft an application."""
 import json
+import re
 from pathlib import Path
 
 from openai import OpenAI
@@ -102,4 +103,7 @@ def draft_application(listing: dict, profile_label: str, warnings: list[str], ap
         f"<missing_or_uncertain>{', '.join(warnings) or 'none'}</missing_or_uncertain>\n\n"
         f"<applicant_profile>\n{applicant}\n</applicant_profile>"
     )
-    return _call(PROMPT, user, DRAFT_SCHEMA, effort="medium")
+    draft = _call(PROMPT, user, DRAFT_SCHEMA, effort="medium")
+    # Backstop for the no-dashes rule in prompt.md
+    draft["message"] = re.sub(r"\s*[—–]\s*", ", ", draft["message"])
+    return draft
