@@ -1,12 +1,12 @@
 # BoligPortal application agent
 
-Turns BoligPortal SearchAgent alert emails into tailored application drafts on Telegram. You copy the draft, open the listing in the BoligPortal app, and paste it into "Kontakt".
+Turns BoligPortal SearchAgent alert emails into tailored application drafts, emailed back to the same inbox. You copy the draft, open the listing in the BoligPortal app, and paste it into "Kontakt".
 
 ```
 SearchAgent email → mailbox folder "BoligPortal"
 cron-job.org (every 3 min) → GitHub Actions → main.py
   read unread alerts (IMAP) → OpenAI (gpt-6-luna) extracts listings → filters.py (config.yaml)
-  → OpenAI checks requirements + drafts message → Telegram card → email marked read
+  → OpenAI checks requirements + drafts message → draft email (sent via Gmail SMTP) → alert marked read
 ```
 
 The agent never visits boligportal.dk. BoligPortal forbids automated access, and its Cloudflare protection blocks GitHub's servers.
@@ -25,8 +25,8 @@ Missing information never rejects a listing. It shows up as ❔ on the card.
 ## Setup
 
 1. **BoligPortal**: complete your tenant profile, then create one SearchAgent: areas København K, V, Ø, N and NV, 2+ rooms, max rent 19,000. The agent decides per listing whether it fits solo or shared.
-2. **Mailbox**: add a filter that moves BoligPortal alert emails into a folder/label called `BoligPortal`, and create an app password (Gmail: Google Account → Security → App passwords; IMAP must be enabled).
-3. **Telegram**: create a bot with @BotFather and copy the token. Send the bot any message, then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy `chat.id`.
+2. **Mailbox**: create an app password (Gmail: myaccount.google.com/apppasswords). Once the first alert arrives, use "Filter messages like these" on it: match the BoligPortal **sender** plus a subject word only alerts use, then Skip the Inbox + label `BoligPortal`. Don't filter on the word "boligportal" alone: it would also catch landlord-reply notifications and the agent's own draft emails.
+3. **Draft emails** are sent from the same Gmail account to itself (or to `NOTIFY_TO`), using the app password.
 4. **OpenAI API key** from platform.openai.com (API credit is billed separately from a ChatGPT subscription).
 5. **Applicant profile**: plain-text facts about you (and your friend, for shared applications): name, age, job/studies, income, non-smoker, pets, why these areas, references, contact availability. Drafts only use facts from this text.
 6. **GitHub secrets** (repo → Settings → Secrets and variables → Actions):
@@ -38,8 +38,7 @@ Missing information never rejects a listing. It shows up as ❔ on the card.
    | `IMAP_PASSWORD` | the app password |
    | `IMAP_FOLDER` | optional, default `BoligPortal` |
    | `OPENAI_API_KEY` | API key |
-   | `TELEGRAM_BOT_TOKEN` | bot token |
-   | `TELEGRAM_CHAT_ID` | chat id |
+   | `NOTIFY_TO` | optional, where drafts go (default: `IMAP_USER`) |
    | `APPLICANT_PROFILE` | the profile text from step 5 |
 
 7. **Test**: Actions tab → boligportal-agent → Run workflow.

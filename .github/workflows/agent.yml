@@ -27,6 +27,5 @@ jobs:
           IMAP_PASSWORD: ${{ secrets.IMAP_PASSWORD }}
           IMAP_FOLDER: ${{ secrets.IMAP_FOLDER }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NOTIFY_TO: ${{ secrets.NOTIFY_TO }}
           APPLICANT_PROFILE: ${{ secrets.APPLICANT_PROFILE }}

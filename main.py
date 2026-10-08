@@ -1,8 +1,8 @@
-"""Turn BoligPortal SearchAgent alert emails into tailored application drafts on Telegram.
+"""Turn BoligPortal SearchAgent alert emails into tailored application drafts, sent by email.
 
 Usage:
-  python main.py                       # process unread alerts via IMAP, send to Telegram
-  python main.py --dry-run             # same, but print cards and leave emails unread
+  python main.py                       # process unread alerts via IMAP, email the drafts
+  python main.py --dry-run             # same, but print drafts and leave alerts unread
   python main.py --eml alert.eml       # process a saved email (implies --dry-run unless --send)
 """
 import argparse
@@ -12,11 +12,12 @@ import imaplib
 import logging
 import os
 import re
-from email.message import Message
+import smtplib
+from email.message import EmailMessage, Message
+from email.utils import parseaddr
 from html.parser import HTMLParser
 from pathlib import Path
 
-import requests
 import yaml
 
 import llm
@@ -90,16 +91,17 @@ def _kr(value) -> str:
     return "?" if value is None else f"{value:,.0f}".replace(",", ".")
 
 
-def format_card(listing: dict, profile_label: str, warnings: list[str], draft: dict) -> str:
+def format_card(listing: dict, profile_label: str, warnings: list[str], draft: dict) -> EmailMessage:
     e = html.escape
     rent, aconto = listing.get("monthly_rent"), listing.get("aconto")
     total = None if rent is None else rent + (aconto or 0)
     months = listing.get("rental_period_months")
     lease = "?" if months is None else "unlimited" if months == 0 else f"{months} mo"
     fit_icon = {"ok": "✅", "warn": "⚠️", "reject": "⛔"}[draft["fit"]]
+    place = " · ".join(filter(None, [listing.get("address"), listing.get("district")]))
     lines = [
-        f"🏠 <b>{e(listing['title'])}</b>",
-        e(" · ".join(filter(None, [listing.get("address"), listing.get("district")]))),
+        f"<b>{e(listing['title'])}</b>",
+        e(place),
         f"{_kr(listing.get('rooms'))} rooms · {_kr(listing.get('size_m2'))} m² · "
         f"{_kr(rent)} + {_kr(aconto)} aconto = <b>{_kr(total)} kr</b>",
         f"Lease: {lease} · Move-in: {e(listing.get('available_from') or '?')}",
@@ -109,27 +111,30 @@ def format_card(listing: dict, profile_label: str, warnings: list[str], draft: d
         lines.append("❔ " + e(", ".join(warnings)))
     if draft["blockers"]:
         lines.append("❗ " + e("; ".join(draft["blockers"])))
-    lines += [f'<a href="{e(listing["url"], quote=True)}">Open listing</a>', "",
-              f"<pre>{e(draft['message'])}</pre>"]
-    return "\n".join(lines)
-
-
-def send_telegram(text: str) -> None:
-    response = requests.post(
-        f"https://api.telegram.org/bot{os.environ['TELEGRAM_BOT_TOKEN']}/sendMessage",
-        json={
-            "chat_id": os.environ["TELEGRAM_CHAT_ID"],
-            "text": text,
-            "parse_mode": "HTML",
-            "disable_web_page_preview": True,
-        },
-        timeout=20,
+    lines.append(f'<a href="{e(listing["url"], quote=True)}">Open listing on BoligPortal</a>')
+    body = (
+        "<div style='font-family:sans-serif;font-size:15px'>" + "<br>".join(lines) +
+        "<div style='margin-top:16px;padding:12px;border:1px solid #ccc;border-radius:6px;"
+        f"white-space:pre-wrap'>{e(draft['message'])}</div></div>"
     )
-    response.raise_for_status()
+    msg = EmailMessage()
+    msg["Subject"] = f"{fit_icon} {profile_label.split(' (')[0]} · {_kr(total)} kr · {place or listing['title']}"
+    msg.set_content(f"{listing['url']}\n\n{draft['message']}\n")
+    msg.add_alternative(body, subtype="html")
+    return msg
 
 
-def process_email(msg: Message, config: dict, applicant: str) -> list[str]:
-    """Returns the Telegram cards to send for one alert email."""
+def send_email(msg: EmailMessage) -> None:
+    user = os.environ["IMAP_USER"]
+    msg["From"] = f"Bolig agent <{user}>"
+    msg["To"] = os.environ.get("NOTIFY_TO") or user
+    with smtplib.SMTP_SSL(os.environ.get("SMTP_HOST") or "smtp.gmail.com", 465) as smtp:
+        smtp.login(user, os.environ["IMAP_PASSWORD"])
+        smtp.send_message(msg)
+
+
+def process_email(msg: Message, config: dict, applicant: str) -> list[EmailMessage]:
+    """Returns the draft emails to send for one alert email."""
     cards = []
     for listing in llm.extract_listings(email_to_text(msg)):
         ad_id = listing_id(listing["url"])
@@ -153,37 +158,46 @@ def unread_alerts(imap: imaplib.IMAP4_SSL):
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dry-run", action="store_true", help="print cards, don't send or mark read")
+    parser.add_argument("--dry-run", action="store_true", help="print drafts, don't send or mark read")
     parser.add_argument("--eml", type=Path, help="process a saved .eml instead of the mailbox")
-    parser.add_argument("--send", action="store_true", help="with --eml: send cards to Telegram")
+    parser.add_argument("--send", action="store_true", help="with --eml: email the drafts")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
     config = yaml.safe_load((ROOT / "config.yaml").read_text())
     applicant = os.environ.get("APPLICANT_PROFILE") or (ROOT / "applicant_profile.md").read_text()
 
-    def deliver(cards: list[str], dry_run: bool) -> None:
+    def deliver(cards: list[EmailMessage], dry_run: bool) -> None:
         for card in cards:
-            print(card, end="\n\n" + "-" * 60 + "\n\n") if dry_run else send_telegram(card)
+            if dry_run:
+                print(card["Subject"], card.get_body(("plain",)).get_content(), sep="\n", end="-" * 60 + "\n")
+            else:
+                send_email(card)
 
     if args.eml:
         msg = email.message_from_bytes(args.eml.read_bytes())
         deliver(process_email(msg, config, applicant), dry_run=not args.send)
         return
 
+    own_address = os.environ["IMAP_USER"].lower()
     imap = imaplib.IMAP4_SSL(os.environ.get("IMAP_HOST") or "imap.gmail.com")
-    imap.login(os.environ["IMAP_USER"], os.environ["IMAP_PASSWORD"])
+    imap.login(own_address, os.environ["IMAP_PASSWORD"])
     imap.select(f'"{os.environ.get("IMAP_FOLDER") or "BoligPortal"}"')
     try:
         for uid, msg in unread_alerts(imap):
+            # Our own draft emails contain BoligPortal links and may get filed here too.
+            if parseaddr(msg.get("From", ""))[1].lower() == own_address:
+                continue
             try:
                 deliver(process_email(msg, config, applicant), args.dry_run)
             except Exception:
                 # Mark it read anyway so a broken email isn't retried (and billed) every run.
                 log.exception("failed to process email uid %s", uid.decode())
                 if not args.dry_run:
-                    send_telegram(f"⚠️ Couldn't process a BoligPortal alert: "
-                                  f"{html.escape(msg.get('Subject', '(no subject)'))}. Check the email manually.")
+                    error = EmailMessage()
+                    error["Subject"] = "⚠️ Bolig agent couldn't process an alert"
+                    error.set_content(f"Check this alert manually: {msg.get('Subject', '(no subject)')}")
+                    send_email(error)
             if not args.dry_run:
                 imap.uid("store", uid, "+FLAGS", "(\\Seen)")
     finally:
