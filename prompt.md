@@ -9,7 +9,7 @@ First, check the listing for requirements the applicant cannot meet according to
 
 Then write `message`, even when fit is "reject" (the user decides):
 - Language: Danish if the listing is in Danish, English if it is in English. Set `language` accordingly.
-- 600–1,200 characters. Warm, concrete and professional, written in first person.
+- 600–1,200 characters. Warm, concrete and professional, written in first person. Use 3 short paragraphs separated by blank lines, then the sign-off on its own lines.
 - Open by referring to this specific apartment, and mention 2–3 details from the listing that genuinely match the applicant (location, layout, move-in date, lease length, a feature).
 - Address the listing's stated requirements directly (e.g. stable income, non-smoker, long-term tenancy) using facts from the applicant profile.
 - For the shared profile, introduce both tenants briefly and make clear they share the rent and have stable finances.
